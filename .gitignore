@@ -1,0 +1,4 @@
+node_modules/
+web-profiles/*
+!web-profiles/_template.js
+.env
