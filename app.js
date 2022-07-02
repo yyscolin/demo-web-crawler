@@ -1,9 +1,10 @@
 const dotenv = require('dotenv')
 const path = require(`path`)
 const fs = require(`fs`)
-const webCrawl = require(`./web-crawler`)
-dotenv.config({path: path.join(__dirname, `.env`)})
 
+
+dotenv.config({path: path.join(__dirname, `.env`)})
+const webCrawl = require(`./web-crawler`)
 
 
 function getWebProfiles() {
@@ -29,12 +30,16 @@ function getWebProfiles() {
 async function main() {
   const webProfiles = getWebProfiles()
   const [,, ...searchQueries] = process.argv
-  for (const searchQuery of searchQueries) {
-    for (const webProfile of webProfiles) {
-      const crawlResult = await webCrawl(searchQuery, webProfile)
-      console.log(JSON.stringify(crawlResult, null, 2)) 
-    }
-  }
+
+  let crawlResults = []
+  for (const searchQuery of searchQueries)
+    for (const webProfile of webProfiles)
+      crawlResults.push(webCrawl(searchQuery, webProfile))
+
+  crawlResults = await Promise.all(crawlResults)
+  for (const crawlResult of crawlResults)
+      console.log(JSON.stringify(crawlResult, null, 2))
+
   process.exit()
 }
 

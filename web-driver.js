@@ -108,10 +108,10 @@ async function quitWebDriver(webObject) {
     webObject.isCompleted = true
     await seleniumItems.get(webObject).quit()
     seleniumItems.delete(webObject)
-    if (webDrivers.length > maxDriversAllowed) webDrivers[maxDriversAllowed].carryOn()
-    webDrivers.splice(webDrivers.indexOf(this), 1)
-    console.log(`quitWebDriver(${webObject.name}); Completed`)
-    console.log(`Current webdrivers count: ${webDrivers.length}`)
+    if (webDrivers.length > maxDriversAllowed)
+      webDrivers[maxDriversAllowed].carryOn()
+    webDrivers.splice(webDrivers.indexOf(webObject), 1)
+    console.log(`quitWebDriver(${webObject.name}); Completed; Current webdrivers count: ${webDrivers.length}`)
   } catch(error) {
     console.error(`quitWebDriver(${webObject.name})\n${error}`)
     throw error
