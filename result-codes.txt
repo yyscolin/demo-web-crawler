@@ -1,0 +1,9 @@
+-3      Unable to find any search results to crawl
+-2      Page explicitly mentioned no search results
+-1      Cloudflare Protected
+0       Ok
+1       Unknown Error
+2       Error occured when finding URLs to crawl
+3       Error occurred when checking if is Cloudflared
+4       Error occurred when checking if page contain search results
+5       Error occurred when getting search results
