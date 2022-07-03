@@ -12,6 +12,10 @@ Then for each URL, the app will crawl through the page looking for specified inf
 1. Create a web profile following web-profiles/_template.js
 2. `node app.js [keyword#1 [keyword#2...]]`
 
+### Demonstration
+Enter `node app.js minions`
+This command will search IMDB and Rotten Tomatoes for movies related to "minions" and retrieve the title, year, average score, duration, PG rating, and tags of the first 5 results return.
+
 node version: v16.13.0
 firefox version: v102.0
 geckodriver version: v0.30.0
