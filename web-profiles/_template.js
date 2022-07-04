@@ -42,17 +42,16 @@ async function startCrawling(webDriver) {
    * This is merely a sample, you need to write your own code to determine
    * what information are to be collected.
    */
-  const requiredInfo = await webDriver.getObject({
-    column1: _ => _.findElementByCss(`example-1`)
+  return {
+    column1: await webDriver.findElementByCss(`example-1`)
       .getAttribute(`innerHTML`),
-    column2: _ => _.findElementByCss(`example-2`)
+    column2: await webDriver.findElementByCss(`example-2`)
       .getAttribute(`innerHTML`),
-    column3: _ => _.findElementByCss(`example-3`)
+    column3: await webDriver.findElementByCss(`example-3`)
       .getAttribute(`innerHTML`),
-    column4: _ => _.findElementByCss(`example-4`)
+    column4: await webDriver.findElementByCss(`example-4`)
       .getAttribute(`innerHTML`),
-  })
-  return requiredInfo
+  }
 }
 
 module.exports = {

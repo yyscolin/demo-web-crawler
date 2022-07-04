@@ -5,7 +5,7 @@
 const {Builder, By} = require('selenium-webdriver')
 const firefox = require('selenium-webdriver/firefox')
 
-const maxDriversAllowed = process.env.MAX_DRIVERS_COUNT
+const maxDriversAllowed = parseInt(process.env.MAX_DRIVERS_COUNT || 1)
 const webDrivers = []
 
 const seleniumItems = new Map()
@@ -13,148 +13,182 @@ const seleniumItems = new Map()
 const seleniumOptions = new firefox.Options()
 if (process.env.FIREFOX_BIN) seleniumOptions.setBinary(process.env.FIREFOX_BIN)
 
-function addMethodsOfFinding(object) {
-  object.findElementByClassName = (...args) => findElement(object, `className`, ...args)
-  object.findElementByCss = (...args) => findElement(object, `css`, ...args)
-  object.findElementById = (...args) => findElement(object, `id`, ...args)
-  object.findElementByJs = (...args) => findElement(object, `js`, ...args)
-  object.findElementByLinkText = (...args) => findElement(object, `linkText`, ...args)
-  object.findElementByName = (...args) => findElement(object, `name`, ...args)
-  object.findElementByPartialLinkText = (...args) => findElement(object, `partialLinkText`, ...args)
-  object.findElementByXpath = (...args) => findElement(object, `xpath`, ...args)
-  object.findElementsByClassName = (...args) => findElements(object, `className`, ...args)
-  object.findElementsByCss = (...args) => findElements(object, `css`, ...args)
-  object.findElementsById = (...args) => findElements(object, `id`, ...args)
-  object.findElementsByJs = (...args) => findElements(object, `js`, ...args)
-  object.findElementsByLinkText = (...args) => findElements(object, `linkText`, ...args)
-  object.findElementsByName = (...args) => findElements(object, `name`, ...args)
-  object.findElementsByPartialLinkText = (...args) => findElements(object, `partialLinkText`, ...args)
-  object.findElementsByXpath = (...args) => findElements(object, `xpath`, ...args)
-}
-
-function getValue(webObject, getMethod, attribute, modification) {
-  const promise = new Promise(async (resolve, reject) => {
-    try {
-      if (webObject instanceof Promise) webObject = await webObject
-      if (!webObject) return resolve(null)
-      let value = await seleniumItems.get(webObject)[getMethod](attribute)
-      if (value && modification) value = modification(value)
-      resolve(value)
-    } catch(err) {
-      reject(err)
-    }
-  })
-  promise.redirect = () => getWebDriver(promise)
-  return promise
-}
-
-function findElement(webObject, byMethod, ...args) {
-  const promise = new Promise(async (resolve, reject) => {
-    try {
-      if (webObject instanceof Promise) webObject = await webObject
-      if (!webObject) return resolve(null)
-      let htmlElement = seleniumItems.get(webObject)
-      htmlElement = await htmlElement.findElements(By[byMethod](...args))
-      htmlElement = htmlElement[0]
-      if (htmlElement) {
-        const elementName = `${webObject.name};${byMethod}:${args}`
-        htmlElement = new WebElement(elementName, htmlElement)
+function extendCommonMethods(webObject) {
+  function findElement(byMethod, ...args) {
+    return new WebElementPromise(async (resolve, reject) => {
+      try {
+        if (webObject instanceof Promise) webObject = await webObject
+        if (!webObject) return resolve(null)
+        let htmlElement = seleniumItems.get(webObject)
+        htmlElement = await htmlElement.findElements(By[byMethod](...args))
+        htmlElement = htmlElement[0]
+        if (htmlElement) {
+          const elementName = `${webObject.name};${byMethod}:${args}`
+          htmlElement = new WebElement(elementName, htmlElement)
+        }
+        resolve(htmlElement || null)
+      } catch(err) {
+        reject(err)
       }
-      resolve(htmlElement)
-    } catch(err) {
-      reject(err)
-    }
-  })
-  addMethodsOfFinding(promise)
-  promise.getAttribute = (...args) => getValue(promise, `getAttribute`, ...args)
-  promise.getCssValue = (...args) => getValue(promise, `getCssValue`, ...args)
-  promise.hasClass = (...args) => hasClass(promise, ...args)
-  return promise
+    })
+  }
+
+  function findElements(byMethod, ...args) {
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        if (webObject instanceof Promise) webObject = await webObject
+        if (!webObject) return resolve(null)
+        const parentHtml = seleniumItems.get(webObject)
+        const childHtmls = await parentHtml.findElements(By[byMethod](...args))
+        resolve(childHtmls.map(childHtml => {
+          const elementName = `${webObject.name};${byMethod}:${args}`
+          return new WebElement(elementName, childHtml)
+        }))
+      } catch(err) {
+        reject(err)
+      }
+    })
+    return promise
+  }
+
+  webObject.findElementByClassName = function(name) {
+    return findElement(`className`, name)
+  }
+
+  webObject.findElementByCss = function(selector) {
+    return findElement(`css`, selector)
+  }
+
+  webObject.findElementById = function(id) {
+    return findElement(`id`, id)
+  }
+
+  webObject.findElementByJs = function(script, ...var_args) {
+    return findElement(`js`, script, ...var_args)
+  }
+
+  webObject.findElementByLinkText = function(text) {
+    return findElement(`linkText`, text)
+  }
+
+  webObject.findElementByName = function(name) {
+    return findElement(`name`, name)
+  }
+
+  webObject.findElementByPartialLinkText = function(text) {
+    return findElement(`partialLinkText`, text)
+  }
+
+  webObject.findElementByXpath = function(xpath) {
+    return findElement(`xpath`, xpath)
+  }
+
+  webObject.findElementsByClassName = function(name) {
+    return findElements(`className`, name)
+  }
+
+  webObject.findElementsByCss = function(selector) {
+    return findElements(`css`, selector)
+  }
+
+  webObject.findElementsById = function(id) {
+    return findElements(`id`, id)
+  }
+
+  webObject.findElementsByJs = function(script, ...var_args) {
+    return findElements(`js`, script, ...var_args)
+  }
+
+  webObject.findElementsByLinkText = function(text) {
+    return findElements(`linkText`, text)
+  }
+
+  webObject.findElementsByName = function(name) {
+    return findElements(`name`, name)
+  }
+
+  webObject.findElementsByPartialLinkText = function(text) {
+    return findElements(`partialLinkText`, text)
+  }
+
+  webObject.findElementsByXpath = function(xpath) {
+    return findElements(`xpath`, xpath)
+  }
 }
 
-function findElements(webObject, byMethod, ...args) {
-  const promise = new Promise(async (resolve, reject) => {
+function extendWebDriverMethods(webDriver) {
+  webDriver.quit = async function() {
     try {
-      if (webObject instanceof Promise) await webObject
-      if (!webObject) return resolve(null)
-      const parentHtml = seleniumItems.get(webObject)
-      const childHtmls = await parentHtml.findElements(By[byMethod](...args))
-      resolve(childHtmls.map(childHtml => {
-        const elementName = `${webObject.name};${byMethod}:${args}`
-        return new WebElement(elementName, childHtml)
-      }))
-    } catch(err) {
-      reject(err)
+      if (webDriver instanceof Promise) webDriver = await webDriver
+      if (webDriver.isCompleted) {
+        console.log(`quitWebDriver(${webDriver.name}); Skipping this task as webdriver is already quitted`)
+        return
+      }
+      webDriver.isCompleted = true
+      await seleniumItems.get(webDriver).quit()
+      seleniumItems.delete(webDriver)
+      if (webDrivers.length > maxDriversAllowed)
+        webDrivers[maxDriversAllowed].carryOn()
+      webDrivers.splice(webDrivers.indexOf(webDriver), 1)
+      console.log(`quitWebDriver(${webDriver.name}); Completed; Current webdrivers count: ${webDrivers.length}`)
+    } catch(error) {
+      console.error(`quitWebDriver(${webDriver.name})\n${error}`)
+      throw error
     }
-  })
-  return promise
-}
-
-async function hasClass(webObject, matchingClass) {
-  if (webObject instanceof Promise) webObject = await webObject
-  if (!webObject) return resolve(null)
-  let classList = await seleniumItems.get(webObject).getAttribute(`class`)
-  classList = classList.split(` `)
-  return classList.includes(matchingClass)
-}
-
-async function quitWebDriver(webObject) {
-  try {
-    if (webObject instanceof Promise) webObject = await webObject
-    if (webObject.isCompleted) {
-      console.log(`quitWebDriver(${webObject.name}); Skipping this task as webdriver is already quitted`)
-      return
-    }
-    webObject.isCompleted = true
-    await seleniumItems.get(webObject).quit()
-    seleniumItems.delete(webObject)
-    if (webDrivers.length > maxDriversAllowed)
-      webDrivers[maxDriversAllowed].carryOn()
-    webDrivers.splice(webDrivers.indexOf(webObject), 1)
-    console.log(`quitWebDriver(${webObject.name}); Completed; Current webdrivers count: ${webDrivers.length}`)
-  } catch(error) {
-    console.error(`quitWebDriver(${webObject.name})\n${error}`)
-    throw error
   }
 }
 
-async function getObject(webObject, keyFunctions) {
-  if (webObject instanceof Promise) webObject = await webObject
-
-  const object = {}
-  for (const [key, callback] of Object.entries(keyFunctions))
-    object[key] = await callback(webObject)
-  return object
-}
-
-class WebElement {
-  constructor(name, seleniumItem) {
-    addMethodsOfFinding(this)
-    this.name = name
-    seleniumItems.set(this, seleniumItem)
+function extendWebElementMethods(webElement) {
+  async function getValue(getMethod, modification, attribute) {
+    if (webElement instanceof Promise) webElement = await webElement
+    if (!webElement) return null
+    let value = await seleniumItems.get(webElement)[getMethod](attribute)
+    if (value && modification) value = modification(value)
+    return value
   }
 
-  getAttribute(attribute, callback) {
-    return getValue(this, 'getAttribute', attribute, callback)
+  async function hasClass(className) {
+    if (webElement instanceof Promise) webElement = await webElement
+    if (!webElement) return null
+    let classList = await seleniumItems.get(webElement).getAttribute(`class`)
+    classList = classList ? classList.split(` `) : []
+    return classList.includes(className)
   }
 
-  getCssValue(attribute, callback) {
-    return getValue(this, 'getCssValue', attribute, callback)
+  webElement.getAttribute = function(attributeName, modification) {
+    return getValue(`getAttribute`, modification, attributeName)
   }
 
-  hasClass(matchingClass) {
-    return hasClass(this, matchingClass)
+  webElement.getCssValue = function(cssStyleProperty, modification) {
+    return getValue(`getCssValue`, modification, cssStyleProperty)
   }
 
-  getObject(keyFunctions) {
-    return getObject(this, keyFunctions)
+  webElement.getId = function(modification) {
+    return getValue(`getId`, modification)
+  }
+
+  webElement.getRect = function(modification) {
+    return getValue(`getRect`, modification)
+  }
+
+  webElement.getTagName = function(modification) {
+    return getValue(`getTagName`, modification)
+  }
+
+  webElement.getText = function(modification) {
+    return getValue(`getText`, modification)
+  }
+
+  webElement.hasClass = function(className) {
+    return hasClass(className)
   }
 }
 
 class WebDriver {
   constructor(url, cookies) {
     webDrivers.push(this)
-    addMethodsOfFinding(this)
+    extendCommonMethods(this)
+    extendWebDriverMethods(this)
     this.name = url
     this.initialUrl = url
     this.currentUrl = url
@@ -196,20 +230,36 @@ class WebDriver {
       }
     }))
   }
+}
 
-  getObject(keyFunctions) {
-    return getObject(this, keyFunctions)
+class WebElement {
+  constructor(name, seleniumItem) {
+    extendCommonMethods(this)
+    extendWebElementMethods(this)
+    this.name = name
+    seleniumItems.set(this, seleniumItem)
   }
+}
 
-  quit() {
-    return quitWebDriver(this)
+class WebDriverPromise extends Promise {
+  constructor(...args) {
+    super(...args)
+    extendCommonMethods(this)
+    extendWebDriverMethods(this)
+  }
+}
+
+class WebElementPromise extends Promise {
+  constructor(...args) {
+    super(...args)
+    extendCommonMethods(this)
+    extendWebElementMethods(this)
   }
 }
 
 function getWebDriver(url, cookies=[]) {
-  const promise = new Promise(async (resolve, reject) => {
+  return new WebDriverPromise(async (resolve, reject) => {
     try {
-      if (url instanceof Promise) url = await url
       let webObject = webDrivers.find(_ => _.aliasUrls.includes(url))
       if (webObject) {
         const seleniumDriver = seleniumItems.get(webObject)
@@ -224,9 +274,6 @@ function getWebDriver(url, cookies=[]) {
       reject(err)
     }
   })
-  addMethodsOfFinding(promise)
-  promise.quit = () => quitWebDriver(promise)
-  return promise
 }
 
 module.exports = getWebDriver
